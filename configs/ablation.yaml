@@ -1,0 +1,50 @@
+  # configs/ablation_study.yaml
+  wandb_project: "MSPI_Simple_seed_42"
+
+  # Base template for all experiments
+  template_config: &template
+    learning_rate: 9e-5
+    weight_decay: 5e-6
+    use_curriculum_learning: true
+    difficulty_method: "euclidean_distance"
+    num_epochs: 30
+    batch_size: 48
+    train_dataset: "MSPI"
+    evaluation_mode: "cross_corpus"
+
+    class_weights:
+      neutral: 0.8
+      happy: 3.5
+      sad: 1.8
+      anger: 1.6
+
+    curriculum_epochs: 10
+    curriculum_pacing: "sqrt"
+
+    expected_vad:
+      0: [3.0, 3.0, 3.0]  # neutral
+      1: [4.2, 3.8, 3.5]  # happy
+      2: [1.8, 2.2, 2.5]  # sad
+      3: [2.5, 4.0, 3.2]  # anger
+
+  experiments:
+    # - <<: *template
+    #   name: "exponential"
+    #   use_curriculum_learning: true
+    #   curriculum_pacing: "exponential"
+
+    # - <<: *template
+    #   name: "No_Curriculum"
+    #   use_curriculum_learning: false
+
+
+    # - <<: *template
+    #   name: "Linear_Pacing"
+    #   curriculum_pacing: "linear"
+    #   use_curriculum_learning: true
+
+    - <<: *template
+      name: "square_root_2"
+      # curriculum_pacing: "sqrt"
+      use_curriculum_learning: true
+

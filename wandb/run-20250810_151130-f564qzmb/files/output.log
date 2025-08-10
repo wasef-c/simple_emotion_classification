@@ -1,0 +1,78 @@
+🚀 Starting experiment: square_root_2
+📊 Evaluation Mode: CROSS_CORPUS
+`trust_remote_code` is not supported anymore.
+Please check that the Hugging Face dataset 'cairocode/MSPI_Emotion2Vec' isn't based on a loading script and remove `trust_remote_code`.
+If the dataset is based on a loading script, please ask the dataset author to remove it and convert it to a standard format like Parquet.
+✅ Loaded 7798 samples from MSPI
+📊 MSPI Sessions:
+   Session 1: 1108 samples
+   Session 2: 1547 samples
+   Session 3: 1431 samples
+   Session 4: 1143 samples
+   Session 5: 1518 samples
+   Session 6: 518 samples
+   Session 7: 533 samples
+`trust_remote_code` is not supported anymore.
+Please check that the Hugging Face dataset 'cairocode/IEMO_Emotion2Vec' isn't based on a loading script and remove `trust_remote_code`.
+If the dataset is based on a loading script, please ask the dataset author to remove it and convert it to a standard format like Parquet.
+✅ Loaded 4490 samples from IEMO
+📊 IEMO Sessions:
+   Session -1: 4490 samples
+`trust_remote_code` is not supported anymore.
+Please check that the Hugging Face dataset 'cairocode/MSPP_Emotion2vec_filtered' isn't based on a loading script and remove `trust_remote_code`.
+If the dataset is based on a loading script, please ask the dataset author to remove it and convert it to a standard format like Parquet.
+✅ Loaded 80941 samples from MSPP
+📊 MSPP Sessions:
+   Session -1: 80941 samples
+🚀 Training: MSPI -> [IEMO, MSPP]
+🔧 Using device: cuda
+📚 Curriculum Learning: Disabled
+📊 Cross-Corpus Only Mode: Train=80%, Val=20%
+📈 Training samples: 6239
+📋 Validation samples: 1559
+🎯 Test datasets: IEMO, MSPP
+🔍 Using input_dim: 768 (detected from MSPI)
+<config.Config object at 0x74c9578d3310>
+   Epoch 1: Train Acc=0.5212, Val Acc=0.5895
+   Epoch 2: Train Acc=0.6197, Val Acc=0.6139
+   Epoch 3: Train Acc=0.6556, Val Acc=0.6382
+   Epoch 4: Train Acc=0.6847, Val Acc=0.6446
+   Epoch 5: Train Acc=0.7017, Val Acc=0.6530
+   Epoch 6: Train Acc=0.7208, Val Acc=0.6562
+   Epoch 7: Train Acc=0.7283, Val Acc=0.6568
+   Epoch 8: Train Acc=0.7437, Val Acc=0.6645
+   Epoch 9: Train Acc=0.7599, Val Acc=0.6684
+   Epoch 10: Train Acc=0.7713, Val Acc=0.6709
+   Epoch 11: Curriculum complete, using all training data
+   Epoch 11: Train Acc=0.7819, Val Acc=0.6677
+   Epoch 12: Train Acc=0.7942, Val Acc=0.6677
+   Epoch 13: Train Acc=0.8120, Val Acc=0.6703
+   Epoch 14: Train Acc=0.8186, Val Acc=0.6709
+   Epoch 15: Train Acc=0.8271, Val Acc=0.6742
+   Epoch 16: Train Acc=0.8413, Val Acc=0.6735
+   Epoch 17: Train Acc=0.8508, Val Acc=0.6729
+   Epoch 18: Train Acc=0.8650, Val Acc=0.6748
+   Epoch 19: Train Acc=0.8775, Val Acc=0.6844
+   Epoch 20: Train Acc=0.8856, Val Acc=0.6812
+   Epoch 21: Train Acc=0.8947, Val Acc=0.6786
+   Epoch 22: Train Acc=0.9050, Val Acc=0.6742
+   Epoch 23: Train Acc=0.9091, Val Acc=0.6838
+   Epoch 24: Train Acc=0.9232, Val Acc=0.6735
+   Epoch 25: Train Acc=0.9226, Val Acc=0.6754
+   Epoch 26: Train Acc=0.9333, Val Acc=0.6722
+   Epoch 27: Train Acc=0.9349, Val Acc=0.6799
+   Epoch 28: Train Acc=0.9444, Val Acc=0.6748
+   Epoch 29: Train Acc=0.9405, Val Acc=0.6793
+   Epoch 30: Train Acc=0.9505, Val Acc=0.6761
+   IEMO: Acc=0.5454, UAR=0.5098
+   MSPP: Acc=0.4451, UAR=0.3558
+
+============================================================
+FINAL RESULTS - CROSS_CORPUS
+============================================================
+Validation Accuracy: 0.6761
+Validation UAR: 0.6218
+IEMO Test Accuracy: 0.5454
+IEMO Test UAR: 0.5098
+MSPP Test Accuracy: 0.4451
+MSPP Test UAR: 0.3558

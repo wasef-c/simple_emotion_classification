@@ -1,0 +1,62 @@
+🚀 Starting experiment: Curr+Scaling
+📊 Evaluation Mode: CROSS_CORPUS
+`trust_remote_code` is not supported anymore.
+Please check that the Hugging Face dataset 'cairocode/MSPI_Emotion2Vec' isn't based on a loading script and remove `trust_remote_code`.
+If the dataset is based on a loading script, please ask the dataset author to remove it and convert it to a standard format like Parquet.
+✅ Loaded 7798 samples from MSPI
+📊 MSPI Sessions:
+   Session 1: 1108 samples
+   Session 2: 1547 samples
+   Session 3: 1431 samples
+   Session 4: 1143 samples
+   Session 5: 1518 samples
+   Session 6: 518 samples
+   Session 7: 533 samples
+`trust_remote_code` is not supported anymore.
+Please check that the Hugging Face dataset 'cairocode/IEMO_Emotion2Vec' isn't based on a loading script and remove `trust_remote_code`.
+If the dataset is based on a loading script, please ask the dataset author to remove it and convert it to a standard format like Parquet.
+✅ Loaded 4490 samples from IEMO
+📊 IEMO Sessions:
+   Session 1: 942 samples
+   Session 2: 813 samples
+   Session 3: 1000 samples
+   Session 4: 793 samples
+   Session 5: 942 samples
+`trust_remote_code` is not supported anymore.
+Please check that the Hugging Face dataset 'cairocode/MSPP_Emotion2vec_filtered' isn't based on a loading script and remove `trust_remote_code`.
+If the dataset is based on a loading script, please ask the dataset author to remove it and convert it to a standard format like Parquet.
+❌ Experiment Curr+Scaling failed: unsupported operand type(s) for *: 'NoneType' and 'int'
+
+============================================================
+🧪 EXPERIMENT 2/3: No_Curriculum
+============================================================
+🧪 Running experiment: No_Curriculum
+⚠️  Unknown config parameter: class_weights
+[34m[1mwandb[0m: wandb.init() called while a run is active and reinit is set to 'default', so returning the previous run.
+🚀 Starting experiment: No_Curriculum
+📊 Evaluation Mode: CROSS_CORPUS
+`trust_remote_code` is not supported anymore.
+Please check that the Hugging Face dataset 'cairocode/MSPI_Emotion2Vec' isn't based on a loading script and remove `trust_remote_code`.
+If the dataset is based on a loading script, please ask the dataset author to remove it and convert it to a standard format like Parquet.
+Traceback (most recent call last):
+  File "/media/carol/Data/Documents/Emo_rec/Notebooks/emotion2vec_HAF/Version B/main.py", line 701, in <module>
+    main(args.config, experiment_id, args.all)
+  File "/media/carol/Data/Documents/Emo_rec/Notebooks/emotion2vec_HAF/Version B/main.py", line 678, in main
+    return run_all_experiments_from_yaml(config_path)
+  File "/media/carol/Data/Documents/Emo_rec/Notebooks/emotion2vec_HAF/Version B/main.py", line 100, in run_all_experiments_from_yaml
+    result = run_experiment(config)
+  File "/media/carol/Data/Documents/Emo_rec/Notebooks/emotion2vec_HAF/Version B/main.py", line 143, in run_experiment
+    train_dataset = SimpleEmotionDataset("MSPI", config=config)
+  File "/media/carol/Data/Documents/Emo_rec/Notebooks/emotion2vec_HAF/Version B/main.py", line 295, in __init__
+    for item in self.hf_dataset:
+  File "/media/carol/Data/Documents/Emo_rec/Notebooks/emotion2vec_HAF/Version B/.venv/lib/python3.10/site-packages/datasets/arrow_dataset.py", line 2466, in __iter__
+    formatted_output = format_table(
+  File "/media/carol/Data/Documents/Emo_rec/Notebooks/emotion2vec_HAF/Version B/.venv/lib/python3.10/site-packages/datasets/formatting/formatting.py", line 657, in format_table
+    return formatter(pa_table, query_type=query_type)
+  File "/media/carol/Data/Documents/Emo_rec/Notebooks/emotion2vec_HAF/Version B/.venv/lib/python3.10/site-packages/datasets/formatting/formatting.py", line 410, in __call__
+    return self.format_row(pa_table)
+  File "/media/carol/Data/Documents/Emo_rec/Notebooks/emotion2vec_HAF/Version B/.venv/lib/python3.10/site-packages/datasets/formatting/formatting.py", line 458, in format_row
+    row = self.python_arrow_extractor().extract_row(pa_table)
+  File "/media/carol/Data/Documents/Emo_rec/Notebooks/emotion2vec_HAF/Version B/.venv/lib/python3.10/site-packages/datasets/formatting/formatting.py", line 143, in extract_row
+    return _unnest(pa_table.to_pydict())
+KeyboardInterrupt

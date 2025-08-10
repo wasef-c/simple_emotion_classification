@@ -1,0 +1,53 @@
+🚀 Starting experiment: Curr+Scaling
+📊 Evaluation Mode: CROSS_CORPUS
+❌ Experiment Curr+Scaling failed: name 'true' is not defined
+🔍 Full traceback:
+Traceback (most recent call last):
+  File "/media/carol/Data/Documents/Emo_rec/Notebooks/emotion2vec_HAF/Version B/main.py", line 100, in run_all_experiments_from_yaml
+    result = run_experiment(config)
+  File "/media/carol/Data/Documents/Emo_rec/Notebooks/emotion2vec_HAF/Version B/main.py", line 148, in run_experiment
+    train_dataset = SimpleEmotionDataset("MSPI", config=config, Train=true)
+NameError: name 'true' is not defined
+
+
+============================================================
+🧪 EXPERIMENT 2/3: No_Curriculum
+============================================================
+🧪 Running experiment: No_Curriculum
+⚠️  Unknown config parameter: class_weights
+[34m[1mwandb[0m: wandb.init() called while a run is active and reinit is set to 'default', so returning the previous run.
+🚀 Starting experiment: No_Curriculum
+📊 Evaluation Mode: CROSS_CORPUS
+❌ Experiment No_Curriculum failed: name 'true' is not defined
+🔍 Full traceback:
+Traceback (most recent call last):
+  File "/media/carol/Data/Documents/Emo_rec/Notebooks/emotion2vec_HAF/Version B/main.py", line 100, in run_all_experiments_from_yaml
+    result = run_experiment(config)
+  File "/media/carol/Data/Documents/Emo_rec/Notebooks/emotion2vec_HAF/Version B/main.py", line 148, in run_experiment
+    train_dataset = SimpleEmotionDataset("MSPI", config=config, Train=true)
+NameError: name 'true' is not defined
+
+
+============================================================
+🧪 EXPERIMENT 3/3: Linear_Pacing
+============================================================
+🧪 Running experiment: Linear_Pacing
+⚠️  Unknown config parameter: class_weights
+[34m[1mwandb[0m: wandb.init() called while a run is active and reinit is set to 'default', so returning the previous run.
+🚀 Starting experiment: Linear_Pacing
+📊 Evaluation Mode: CROSS_CORPUS
+❌ Experiment Linear_Pacing failed: name 'true' is not defined
+🔍 Full traceback:
+Traceback (most recent call last):
+  File "/media/carol/Data/Documents/Emo_rec/Notebooks/emotion2vec_HAF/Version B/main.py", line 100, in run_all_experiments_from_yaml
+    result = run_experiment(config)
+  File "/media/carol/Data/Documents/Emo_rec/Notebooks/emotion2vec_HAF/Version B/main.py", line 148, in run_experiment
+    train_dataset = SimpleEmotionDataset("MSPI", config=config, Train=true)
+NameError: name 'true' is not defined
+
+
+============================================================
+📊 EXPERIMENT SUMMARY
+============================================================
+✅ Completed: 0
+❌ Failed: 3

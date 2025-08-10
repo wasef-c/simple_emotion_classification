@@ -1,0 +1,37 @@
+# Curriculum Learning with linear pacing
+experiment_name: "curriculum_linear_pacing"
+wandb_project: "emotion2vec_versionb"
+
+# Training settings
+batch_size: 32
+num_epochs: 25
+learning_rate: 1e-4
+weight_decay: 1e-5
+
+# Model settings
+hidden_dim: 1024
+dropout: 0.3
+num_classes: 4
+
+# Dataset settings
+train_dataset: "MSPI"
+
+# Evaluation settings
+evaluation_mode: "both"
+val_split: 0.2
+
+# Curriculum Learning - LINEAR PACING
+use_curriculum_learning: true
+curriculum_epochs: 8
+curriculum_pacing: "linear"  # Steady progression
+difficulty_method: "euclidean_distance"
+
+# Expected VAD values for difficulty calculation
+expected_vad:
+  0: [3.0, 3.0, 3.0]  # neutral
+  1: [4.2, 3.8, 3.5]  # happy
+  2: [1.8, 2.2, 2.5]  # sad
+  3: [2.5, 4.0, 3.2]  # anger
+
+# Class labels
+class_names: ["neutral", "happy", "sad", "anger"]

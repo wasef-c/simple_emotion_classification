@@ -1,0 +1,45 @@
+{
+  "os": "Linux-6.5.0-28-generic-x86_64-with-glibc2.35",
+  "python": "CPython 3.10.12",
+  "startedAt": "2025-08-10T18:39:30.131538Z",
+  "args": [
+    "--config",
+    "./configs/ablation.yaml",
+    "--all"
+  ],
+  "program": "/media/carol/Data/Documents/Emo_rec/Notebooks/emotion2vec_HAF/Version B/main.py",
+  "codePath": "Version B/main.py",
+  "codePathLocal": "main.py",
+  "git": {
+    "remote": "https://github.com/wasef-c/emotion2vec_HAF.git",
+    "commit": "f5ceb0c84131ff2f59ac32ca86544e026676b499"
+  },
+  "email": "carol.wasef@torontomu.ca",
+  "root": "/media/carol/Data/Documents/Emo_rec/Notebooks/emotion2vec_HAF/Version B",
+  "host": "carol-Legion-T730-28ICO",
+  "executable": "/media/carol/Data/Documents/Emo_rec/Notebooks/emotion2vec_HAF/Version B/.venv/bin/python",
+  "cpu_count": 8,
+  "cpu_count_logical": 16,
+  "gpu": "NVIDIA GeForce RTX 2080",
+  "gpu_count": 1,
+  "disk": {
+    "/": {
+      "total": "250375106560",
+      "used": "218515984384"
+    }
+  },
+  "memory": {
+    "total": "33587265536"
+  },
+  "gpu_nvidia": [
+    {
+      "name": "NVIDIA GeForce RTX 2080",
+      "memoryTotal": "8589934592",
+      "cudaCores": 2944,
+      "architecture": "Turing",
+      "uuid": "GPU-0772a441-05f3-a402-6e85-77d70b09b895"
+    }
+  ],
+  "cudaVersion": "12.4",
+  "writerId": "fontf6btcvrj08817t02vlwg516aw7oa"
+}

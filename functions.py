@@ -1,0 +1,285 @@
+#!/usr/bin/env python3
+"""
+Utility functions for emotion recognition
+"""
+
+import torch
+from sklearn.metrics import accuracy_score, f1_score, classification_report, confusion_matrix
+import numpy as np
+from collections import defaultdict
+import math
+import matplotlib.pyplot as plt
+import seaborn as sns
+import wandb
+import random
+
+def calculate_metrics(predictions, labels):
+    """Calculate basic classification metrics"""
+    predictions = np.array(predictions)
+    labels = np.array(labels)
+    
+    accuracy = accuracy_score(labels, predictions)
+    # UAR = macro average F1 (unweighted average recall)
+    uar = f1_score(labels, predictions, average='macro')
+    f1_weighted = f1_score(labels, predictions, average='weighted')
+    
+    return {
+        'accuracy': accuracy,
+        'uar': uar, 
+        'f1_weighted': f1_weighted
+    }
+
+
+def evaluate_model(model, data_loader, criterion, device, return_difficulties=True, create_plots=True, plot_title=""):
+    """Evaluate model on a dataset with optional confusion matrix and difficulty plots"""
+    model.eval()
+    total_loss = 0
+    predictions = []
+    labels = []
+    difficulties = []
+    
+    with torch.no_grad():
+        for batch in data_loader:
+            features = batch['features'].to(device)
+            batch_labels = batch['label'].to(device)
+            
+            logits = model(features)
+            loss = criterion(logits, batch_labels)
+            
+            total_loss += loss.item()
+            
+            # Get predictions
+            preds = torch.argmax(logits, dim=-1).cpu().numpy()
+            predictions.extend(preds)
+            labels.extend(batch_labels.cpu().numpy())
+            
+            # Collect difficulties if requested
+            if return_difficulties:
+                batch_difficulties = batch.get('difficulty', [0.5] * len(batch_labels))
+                if torch.is_tensor(batch_difficulties):
+                    batch_difficulties = batch_difficulties.cpu().numpy()
+                difficulties.extend(batch_difficulties)
+    
+    avg_loss = total_loss / len(data_loader)
+    metrics = calculate_metrics(predictions, labels)
+    
+    results = {
+        'loss': avg_loss,
+        'predictions': predictions,
+        'labels': labels,
+        'difficulties': difficulties if return_difficulties else None,
+        **metrics
+    }
+    
+    # Create plots if requested
+    if create_plots and plot_title:
+        # Confusion matrix
+        confusion_matrix_plot = create_confusion_matrix(predictions, labels, plot_title)
+        results['confusion_matrix'] = confusion_matrix_plot
+        
+        # Difficulty vs accuracy plot (only if we have difficulties)
+        if return_difficulties and len(difficulties) > 0:
+            difficulty_plot, difficulty_analysis = create_difficulty_accuracy_plot(
+                predictions, labels, difficulties, plot_title
+            )
+            results['difficulty_plot'] = difficulty_plot
+            results['difficulty_analysis'] = difficulty_analysis
+    
+    return results
+
+
+def calculate_difficulty(item, expected_vad, method="euclidean_distance", dataset=None):
+    """Calculate sample difficulty based on VAD values"""
+
+    label = item.get('label', 0)
+    valence = item.get('valence', item.get('EmoVal', None))
+    arousal = item.get('arousal',  item.get('EmoAct', None))
+    dominance = item.get('domination', item.get('consensus_dominance', item.get('EmoDom', None)))
+    if dataset == "MSPP":
+        valence = valence*5/7
+        arousal = arousal*5/7
+        dominance = dominance*5/7
+
+    # If VAD values are missing, return neutral difficulty
+    if any(v is None for v in [valence, arousal, dominance]):
+        return 1.0
+    
+    actual_vad = [valence, arousal, dominance]
+    expected = expected_vad.get(label, [3.0, 3.0, 3.0])
+    
+    # if method == "euclidean_distance":
+    # Calculate Euclidean distance from expected VAD
+    distance = math.sqrt(sum((a - e) ** 2 for a, e in zip(actual_vad, expected)))
+    # Normalize to 0-1 range (assuming max distance is about 3.0)
+    difficulty = min(distance / 3.0, 1.0)
+    
+    return difficulty
+
+
+def get_curriculum_pacing_function(pacing_type):
+    """Get pacing function for curriculum learning"""
+    if pacing_type == "linear":
+        return lambda epoch, total_epochs: min(1.0, (epoch + 1) / total_epochs)
+    elif pacing_type == "sqrt":
+        return lambda epoch, total_epochs: min(1.0, math.sqrt((epoch + 1) / total_epochs))
+    elif pacing_type == "log":
+        return lambda epoch, total_epochs: min(1.0, math.log(epoch + 2) / math.log(total_epochs + 1))
+    else:
+        return lambda epoch, total_epochs: 1.0  # No pacing
+
+
+def create_curriculum_subset(dataset, difficulties, epoch, total_curriculum_epochs, pacing_function):
+    """Create subset of data based on curriculum learning strategy"""
+    if epoch >= total_curriculum_epochs:
+        # After curriculum epochs, use all data
+        return list(range(len(dataset)))
+    
+    # Calculate the fraction of data to include
+    fraction = pacing_function(epoch, total_curriculum_epochs)
+    num_samples = int(len(dataset) * fraction)
+    # Step 1: shuffle all indices
+    shuffled_indices = list(range(len(difficulties)))
+    random.shuffle(shuffled_indices)
+    
+    # Step 2: sort the shuffled indices by difficulty (keeps random tie-breaks)
+    sorted_indices = sorted(shuffled_indices, key=lambda i: difficulties[i])
+    
+    # Step 3: take the easiest subset
+    return sorted_indices[:num_samples]
+
+
+def create_confusion_matrix(predictions, labels, title, class_names=None):
+    """Create confusion matrix plot"""
+    if class_names is None:
+        class_names = ["Neutral", "Happy", "Sad", "Anger"]
+    
+    cm = confusion_matrix(labels, predictions, labels=[0, 1, 2, 3])
+    
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(
+        cm,
+        annot=True,
+        fmt="d",
+        cmap="Blues",
+        xticklabels=class_names,
+        yticklabels=class_names
+    )
+    plt.title(f"Confusion Matrix - {title}")
+    plt.ylabel("True Label")
+    plt.xlabel("Predicted Label")
+    
+    # Create wandb image
+    wandb_image = wandb.Image(plt, caption=f"Confusion Matrix - {title}")
+    plt.close()
+    
+    return wandb_image
+
+
+def create_difficulty_accuracy_plot(predictions, labels, difficulties, title, num_buckets=20):
+    """Create difficulty vs accuracy plot with bucketed analysis"""
+    predictions = np.array(predictions)
+    labels = np.array(labels)
+    difficulties = np.array(difficulties)
+    
+    # Create equal-size buckets based on difficulty quantiles
+    difficulty_bins = np.percentile(difficulties, np.linspace(0, 100, num_buckets + 1))
+    bucket_accuracies = []
+    bucket_centers = []
+    bucket_sizes = []
+    
+    for i in range(num_buckets):
+        # Find samples in this difficulty bucket
+        if i == num_buckets - 1:
+            # Last bucket includes the maximum
+            mask = (difficulties >= difficulty_bins[i]) & (difficulties <= difficulty_bins[i + 1])
+        else:
+            mask = (difficulties >= difficulty_bins[i]) & (difficulties < difficulty_bins[i + 1])
+        
+        if mask.sum() > 0:
+            bucket_preds = predictions[mask]
+            bucket_labels = labels[mask]
+            bucket_acc = accuracy_score(bucket_labels, bucket_preds)
+            bucket_center = (difficulty_bins[i] + difficulty_bins[i + 1]) / 2
+            
+            bucket_accuracies.append(bucket_acc)
+            bucket_centers.append(bucket_center)
+            bucket_sizes.append(mask.sum())
+        else:
+            bucket_accuracies.append(0.0)
+            bucket_centers.append((difficulty_bins[i] + difficulty_bins[i + 1]) / 2)
+            bucket_sizes.append(0)
+    
+    # Create plot
+    plt.figure(figsize=(10, 6))
+    bars = plt.bar(bucket_centers, bucket_accuracies, width=0.8/num_buckets, alpha=0.7, color='skyblue')
+    
+    # Add sample counts on top of bars
+    for i, (bar, size) in enumerate(zip(bars, bucket_sizes)):
+        if size > 0:
+            plt.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01, 
+                    f'n={size}', ha='center', va='bottom', fontsize=8)
+    
+    plt.xlabel('Difficulty Score')
+    plt.ylabel('Accuracy')
+    plt.title(f'Difficulty vs Accuracy - {title}')
+    plt.ylim(0, 1.1)
+    plt.grid(True, alpha=0.3)
+    
+    # Add overall accuracy line
+    overall_acc = accuracy_score(labels, predictions)
+    plt.axhline(y=overall_acc, color='red', linestyle='--', alpha=0.7, 
+                label=f'Overall Accuracy: {overall_acc:.3f}')
+    
+    # Add line of best fit
+    valid_buckets = [(center, acc) for center, acc, size in zip(bucket_centers, bucket_accuracies, bucket_sizes) if size > 0]
+   
+    
+    # Calculate correlation between difficulty and accuracy
+    from scipy.stats import pearsonr
+    valid_buckets = [(center, acc) for center, acc, size in zip(bucket_centers, bucket_accuracies, bucket_sizes) if size > 0]
+    if len(valid_buckets) > 2:
+        centers, accs = zip(*valid_buckets)
+        correlation, p_value = pearsonr(centers, accs)
+    else:
+        correlation, p_value = 0.0, 1.0
+    
+    if len(valid_buckets) > 1:
+        centers, accs = zip(*valid_buckets)
+        z = np.polyfit(centers, accs, 1)  # Linear fit
+        p = np.poly1d(z)
+        x_line = np.linspace(min(centers), max(centers), 100)
+        plt.plot(x_line, p(x_line), color='orange', linestyle='-', alpha=0.8, linewidth=2,
+                label=f'Best Fit (r={correlation:.3f})')
+    
+    plt.legend()
+    
+    # Create wandb image
+    wandb_image = wandb.Image(plt, caption=f"Difficulty vs Accuracy - {title}")
+    plt.close()
+    
+    analysis_data = {
+        'difficulty_accuracy_correlation': correlation,
+        'correlation_p_value': p_value,
+        'bucket_accuracies': bucket_accuracies,
+        'bucket_centers': bucket_centers,
+        'bucket_sizes': bucket_sizes,
+        'overall_accuracy': overall_acc
+    }
+    
+    return wandb_image, analysis_data
+
+
+def get_session_splits(dataset, dataset_name):
+    """Get session-based splits for LOSO evaluation"""
+    session_splits = defaultdict(list)
+    
+    for i, item in enumerate(dataset.data):
+        session = item['session']
+        if session is not None:
+            session_splits[session].append(i)
+    
+    print(f"📊 {dataset_name} Sessions: {sorted(session_splits.keys())}")
+    for session_id in sorted(session_splits.keys()):
+        print(f"   Session {session_id}: {len(session_splits[session_id])} samples")
+    
+    return dict(session_splits)
