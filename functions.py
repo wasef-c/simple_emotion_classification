@@ -4,6 +4,8 @@ Utility functions for emotion recognition
 """
 
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
 from sklearn.metrics import accuracy_score, f1_score, classification_report, confusion_matrix
 import numpy as np
 from collections import defaultdict
@@ -88,51 +90,94 @@ def evaluate_model(model, data_loader, criterion, device, return_difficulties=Tr
     return results
 
 
+# def calculate_difficulty(item, expected_vad, method="euclidean_distance", dataset=None):
+#     """Calculate sample difficulty based on VAD values"""
+
+#     label = item.get('label', 0)
+#     valence = item.get('valence', item.get('EmoVal', None))
+#     arousal = item.get('arousal',  item.get('EmoAct', None))
+#     domination = item.get('domination', item.get('consensus_domination', item.get('EmoDom', None)))
+#     if dataset == "MSPP":
+#         valence = valence*5/7
+#         arousal = arousal*5/7
+#         domination = domination*5/7
+
+#     # If VAD values are missing, return neutral difficulty
+#     if any(v is None for v in [valence, arousal, domination]):
+#         print([valence, arousal, domination])
+    
+#     actual_vad = [valence, arousal, domination]
+#     expected = expected_vad.get(label, None)
+#     if expected == None:
+#         print("ERROR: expected = ", expected)
+    
+#     # if method == "euclidean_distance":
+#     # Calculate Euclidean distance from expected VAD
+#     distance = math.sqrt(sum((a - e) ** 2 for a, e in zip(actual_vad, expected)))
+        
+#     # Normalize to 0-1 range (assuming max distance is about 3.0)
+    
+#     difficulty = distance
+    
+#     return difficulty
+
+import math
+
 def calculate_difficulty(item, expected_vad, method="euclidean_distance", dataset=None):
     """Calculate sample difficulty based on VAD values"""
-
+    
     label = item.get('label', 0)
-    valence = item.get('valence', item.get('EmoVal', None))
-    arousal = item.get('arousal',  item.get('EmoAct', None))
-    dominance = item.get('domination', item.get('consensus_dominance', item.get('EmoDom', None)))
+    valence = item.get('valence', item.get('EmoVal'))
+    arousal = item.get('arousal', item.get('EmoAct'))
+    domination = item.get('domination', item.get('consensus_domination', item.get('EmoDom')))
+
     if dataset == "MSPP":
-        valence = valence*5/7
-        arousal = arousal*5/7
-        dominance = dominance*5/7
+        try:
+            valence = valence * 5 / 7
+            arousal = arousal * 5 / 7
+            domination = domination * 5 / 7
+        except TypeError:
+            print(f"Scaling failed: {valence}, {arousal}, {domination}")
 
-    # If VAD values are missing, return neutral difficulty
-    if any(v is None for v in [valence, arousal, dominance]):
-        return 1.0
-    
-    actual_vad = [valence, arousal, dominance]
-    expected = expected_vad.get(label, [3.0, 3.0, 3.0])
-    
-    # if method == "euclidean_distance":
-    # Calculate Euclidean distance from expected VAD
-    distance = math.sqrt(sum((a - e) ** 2 for a, e in zip(actual_vad, expected)))
-    # Normalize to 0-1 range (assuming max distance is about 3.0)
-    difficulty = min(distance / 3.0, 1.0)
-    
-    return difficulty
+    actual_vad = [valence, arousal, domination]
 
+    # Check for missing values
+    if any(v is None or not isinstance(v, (int, float)) for v in actual_vad):
+        print(f"Missing or invalid VAD values for label {label}: {actual_vad}")
+        return 0.0  # neutral difficulty
+
+    expected = expected_vad.get(label)
+    if expected is None or any(e is None for e in expected):
+        print(f"Missing expected VAD for label {label}")
+        return 0.0
+
+    # Euclidean distance
+    distance = math.sqrt(sum((float(a) - float(e)) ** 2 for a, e in zip(actual_vad, expected)))
+
+    # Guard against NaN or inf
+    if math.isnan(distance) or math.isinf(distance):
+        print(f"Invalid distance for label {label}: {distance} -- {actual_vad} -- {expected}")
+        return 0.0
+
+    return distance
 
 def get_curriculum_pacing_function(pacing_type):
     """Get pacing function for curriculum learning"""
     if pacing_type == "linear":
-        return lambda epoch, total_epochs: min(1.0, (epoch + 1) / total_epochs)
+        return lambda epoch, total_epochs: min(2.0, (epoch + 1) / total_epochs)
     elif pacing_type == "sqrt":
-        return lambda epoch, total_epochs: min(1.0, math.sqrt((epoch + 1) / total_epochs))
+        return lambda epoch, total_epochs: min(2.0, math.sqrt((epoch + 1) / total_epochs))
     elif pacing_type == "log":
-        return lambda epoch, total_epochs: min(1.0, math.log(epoch + 2) / math.log(total_epochs + 1))
+        return lambda epoch, total_epochs: min(2.0, math.log(epoch + 2) / math.log(total_epochs + 1))
     else:
         return lambda epoch, total_epochs: 1.0  # No pacing
 
 
 def create_curriculum_subset(dataset, difficulties, epoch, total_curriculum_epochs, pacing_function):
     """Create subset of data based on curriculum learning strategy"""
-    if epoch >= total_curriculum_epochs:
-        # After curriculum epochs, use all data
-        return list(range(len(dataset)))
+    # if epoch >= total_curriculum_epochs:
+    #     # After curriculum epochs, use all data
+    #     return list(range(len(dataset)))
     
     # Calculate the fraction of data to include
     fraction = pacing_function(epoch, total_curriculum_epochs)
@@ -283,3 +328,57 @@ def get_session_splits(dataset, dataset_name):
         print(f"   Session {session_id}: {len(session_splits[session_id])} samples")
     
     return dict(session_splits)
+
+
+
+class FocalLossAutoWeights(nn.Module):
+    def __init__(self, num_classes, gamma=2.0, reduction='none', device='cpu'):
+        super().__init__()
+        self.num_classes = num_classes
+        self.gamma = gamma
+        self.reduction = reduction
+        self.device = device
+
+    def forward(self, logits, targets):
+        """
+        logits: [batch_size, num_classes]
+        targets: [batch_size] (class indices)
+        """
+        batch_size = targets.size(0)
+
+        # Calculate class frequencies in the batch
+        with torch.no_grad():
+            counts = torch.bincount(targets, minlength=self.num_classes).float()
+            # Avoid division by zero
+            counts = torch.where(counts == 0, torch.ones_like(counts), counts)
+            class_weights = 1.0 / counts  # inverse frequency
+            class_weights = class_weights / class_weights.sum()  # normalize weights to sum to 1
+            class_weights = 1- class_weights + 0.1
+            class_weights[1] = class_weights[1] *3
+            class_weights[0] = class_weights[1] *0.8
+
+
+            class_weights = class_weights.to(self.device)
+            
+
+        # Compute log softmax
+        log_probs = F.log_softmax(logits, dim=-1)  # [B, C]
+        probs = torch.exp(log_probs)  # [B, C]
+
+        targets = targets.long()
+        log_pt = log_probs.gather(dim=1, index=targets.unsqueeze(1)).squeeze(1)  # [B]
+        pt = probs.gather(dim=1, index=targets.unsqueeze(1)).squeeze(1)  # [B]
+
+        focal_term = (1 - pt) ** self.gamma  # [B]
+
+        # Get weights for each target in the batch
+        weights = class_weights[targets]  # [B]
+
+        loss = weights * focal_term * log_pt  # [B]
+
+        if self.reduction == 'mean':
+            return loss.mean()
+        elif self.reduction == 'sum':
+            return loss.sum()
+        else:  # 'none'
+            return loss

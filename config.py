@@ -42,7 +42,7 @@ class Config:
         }
         
         # WandB settings
-        self.wandb_project = "emotion2vec_simple"
+        self.wandb_project = "linear_pacing_comparison"
         self.experiment_name = "baseline"
         
         # Class labels

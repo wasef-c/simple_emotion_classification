@@ -3,12 +3,12 @@
 
   # Base template for all experiments
   template_config: &template
-    learning_rate: 9e-5
+    learning_rate: 1e-4
     weight_decay: 5e-6
     use_curriculum_learning: true
     difficulty_method: "euclidean_distance"
     num_epochs: 30
-    batch_size: 12
+    batch_size: 48
     train_dataset: "MSPI"
     evaluation_mode: "cross_corpus"
 
@@ -20,6 +20,7 @@
 
     curriculum_epochs: 10
     curriculum_pacing: "sqrt"
+    use_difficulty_scaling: True
 
     expected_vad:
       0: [3.0, 3.0, 3.0]  # neutral
@@ -28,24 +29,26 @@
       3: [2.5, 4.0, 3.2]  # anger
 
   experiments:
-    - <<: *template
-      name: "exponential"
-      use_curriculum_learning: true
-      curriculum_pacing: "exponential"
-
-    - <<: *template
-      name: "No_Curriculum"
-      use_curriculum_learning: false
+    # - <<: *template
+    #   name: "No_Curriculum+scale"
+    #   use_curriculum_learning: false
 
 
     - <<: *template
-      name: "Linear_Pacing"
+      name: "Linear_Pacing+scale+base"
       curriculum_pacing: "linear"
       use_curriculum_learning: true
 
-    - <<: *template
-      name: "square_root_2"
-      curriculum_pacing: "sqrt"
-      use_curriculum_learning: true
+    # - <<: *template
+    #   name: "square_root_2+scale"
+    #   curriculum_pacing: "sqrt"
+    #   use_curriculum_learning: true
+  
+
+    # - <<: *template
+    #   name: "baseline"
+    #   # curriculum_pacing: "sqrt"
+    #   use_curriculum_learning: false
+    #   use_difficulty_scaling: false
   
 

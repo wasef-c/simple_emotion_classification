@@ -14,6 +14,7 @@ from pathlib import Path
 import argparse
 import yaml
 import random
+import math 
 
 # Add parent directory to path to access original dataset classes
 sys.path.append(str(Path(__file__).parent.parent))
@@ -25,8 +26,8 @@ import wandb
 # Import local modules
 from config import Config
 from model import SimpleEmotionClassifier
-from functions import (evaluate_model, get_session_splits, calculate_metrics, calculate_difficulty, 
-                      get_curriculum_pacing_function, create_curriculum_subset, create_confusion_matrix, create_difficulty_accuracy_plot)
+from functions import * #(evaluate_model, get_session_splits, calculate_metrics, calculate_difficulty, 
+                    #   get_curriculum_pacing_function, create_curriculum_subset, create_confusion_matrix, create_difficulty_accuracy_plot)
 
 
 def load_config_from_yaml(yaml_path, experiment_id=None):
@@ -367,7 +368,18 @@ class SimpleEmotionDataset(Dataset):
             # Get VAD values for difficulty calculation
             valence = item.get('valence', item.get('EmoVal', None))
             arousal = item.get('arousal',  item.get('EmoAct', None))
-            domination = item.get('domination', item.get('consensus_domination', item.get('EmoDom', None)))
+            domination = item.get('domination', item.get('consensus_dominance', item.get('EmoDom', None)))
+
+            
+            # Replace NaN or None with 3
+            def fix_vad(value):
+                if value is None or (isinstance(value, float) and math.isnan(value)):
+                    return 3
+                return value
+
+            valence = fix_vad(valence)
+            arousal = fix_vad(arousal)
+            domination = fix_vad(domination)
             
             # Calculate difficulty if config is provided
 
@@ -377,6 +389,7 @@ class SimpleEmotionDataset(Dataset):
                 'arousal': arousal,
                 'domination': domination
             }
+            # print(item_with_vad)
             difficulty = calculate_difficulty(item_with_vad, config.expected_vad, config.difficulty_method, dataset = dataset_name)
             
             self.data.append({
@@ -425,6 +438,7 @@ def train_epoch(model, data_loader, criterion, optimizer, device, use_difficulty
     labels = []
     
     for batch in data_loader:
+        # print(batch)
         features = batch['features'].to(device)
         batch_labels = batch['label'].to(device)
         difficulties = batch['difficulty'].to(device)
@@ -432,11 +446,24 @@ def train_epoch(model, data_loader, criterion, optimizer, device, use_difficulty
         optimizer.zero_grad()
         logits = model(features)
         loss = criterion(logits, batch_labels) # difficulties
+        loss_per_sample = criterion(logits, batch_labels)  # reduction='none'
+    
+        # weighted loss
+        if use_difficulty_scaling:
+            loss = (loss_per_sample * difficulties).mean()
+        else:
+            loss = loss_per_sample.mean()
         loss.backward()
         optimizer.step()
         
         total_loss += loss.item()
-        
+
+        log_dict = {
+            "total_loss": loss,
+            "batch difficulty": difficulties.mean()
+        }
+
+        wandb.log(log_dict)
         # Track predictions for metrics
         preds = torch.argmax(logits, dim=-1).cpu().numpy()
         predictions.extend(preds)
@@ -499,7 +526,7 @@ def run_loso_evaluation(config, train_dataset, test_dataset):
             dropout=config.dropout
         ).to(device)
         
-        criterion = nn.CrossEntropyLoss(reduction='none')
+        criterion = FocalLossAutoWeights(num_classes=4, gamma=2.0, reduction='none', device=device)
 
         optimizer = optim.Adam(model.parameters(), lr=config.learning_rate, weight_decay=config.weight_decay)
         
@@ -672,13 +699,22 @@ def run_cross_corpus_evaluation(config, train_dataset, test_datasets):
             print(f"   Epoch {epoch+1}: Using {len(curriculum_indices)}/{len(train_indices)} samples ({fraction:.2f})")
         else:
             # Use all training data
-            train_loader = DataLoader(train_subset, batch_size=config.batch_size, shuffle=False)
+            train_loader = DataLoader(train_subset, batch_size=config.batch_size, shuffle=True)
             if epoch == config.curriculum_epochs:
                 print(f"   Epoch {epoch+1}: Curriculum complete, using all training data")
         
-            train_loss, train_metrics = train_epoch(model, train_loader, criterion, optimizer, device, use_difficulty_scaling = config.use_difficulty_scaling)
-        val_results = evaluate_model(model, val_loader, criterion, device, create_plots=False)
+        train_loss, train_metrics = train_epoch(model, train_loader, criterion, optimizer, device, use_difficulty_scaling = config.use_difficulty_scaling)
         
+        val_results = evaluate_model(model, val_loader, criterion, device, create_plots=False)
+        val_dict = {
+            "val/accuracy": val_results['accuracy'],
+            "val/loss": val_results['loss'],
+            "val/uar": val_results['uar'],
+            "val/f1": val_results['f1_weighted'],
+
+        }
+
+        wandb.log(val_dict)
         if val_results['accuracy'] > best_val_acc:
             best_val_acc = val_results['accuracy']
             best_model_state = model.state_dict().copy()
