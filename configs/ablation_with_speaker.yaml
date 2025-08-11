@@ -1,5 +1,5 @@
   # configs/ablation_study.yaml
-  wandb_project: "MSPI_Simple_seed_42"
+  wandb_project: "MSPP_Simple_seed_42"
 
   # Base template for all experiments
   template_config: &template
@@ -8,8 +8,8 @@
     use_curriculum_learning: true
     difficulty_method: "euclidean_distance"
     num_epochs: 30
-    batch_size: 48
-    train_dataset: "MSPI"
+    batch_size: 64
+    train_dataset: "MSPP"
     evaluation_mode: "cross_corpus"
 
     class_weights:
@@ -31,31 +31,31 @@
 
   experiments:
     - <<: *template
-      name: "Scaling + Spkr MSPI"
+      name: "Scaling + Spkr MSPP"
       use_curriculum_learning: false
 
 
     - <<: *template
-      name: "Curriculum+ Spkr MSPI"
+      name: "Curriculum+ Spkr MSPP"
       curriculum_pacing: "linear"
       use_curriculum_learning: true
     
     - <<: *template
-      name: "Full System + Spkr MSPI"
+      name: "Full System + Spkr MSPP"
       curriculum_pacing: "linear"
       use_curriculum_learning: true
       use_difficulty_scaling: false
 
 
     - <<: *template
-      name: "Spkr Only MSPI"
+      name: "Spkr Only MSPP"
       # curriculum_pacing: "sqrt"
       use_curriculum_learning: false
       use_difficulty_scaling: false
   
 
     - <<: *template
-      name: "Baseline MSPI"
+      name: "Baseline MSPP"
       # curriculum_pacing: "sqrt"
       use_curriculum_learning: false
       use_difficulty_scaling: false
@@ -63,7 +63,7 @@
 
 
     - <<: *template
-      name: "Curriculum Only MSPI" 
+      name: "Curriculum Only MSPP" 
       # curriculum_pacing: "sqrt"
       use_curriculum_learning: true
       use_difficulty_scaling: false
@@ -76,12 +76,12 @@
       use_difficulty_scaling: true
       use_speaker_disentanglement: false
 
-    - <<: *template
-      name: "Preset Curriculum- Full System MSPI"
-      curriculum_type: "preset_order"
+    # - <<: *template
+    #   name: "Preset Curriculum- Full System MSPP"
+    #   curriculum_type: "preset_order"
   
-    - <<: *template
-      name: "Preset Curriculum_ Only MSPI"
-      use_difficulty_scaling: False
-      use_speaker_disentanglement: False
-      curriculum_type: "preset_order"
+    # - <<: *template
+    #   name: "Preset Curriculum_ Only MSPP"
+    #   use_difficulty_scaling: False
+    #   use_speaker_disentanglement: False
+    #   curriculum_type: "preset_order"
