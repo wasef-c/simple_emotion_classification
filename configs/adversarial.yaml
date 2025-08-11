@@ -1,11 +1,11 @@
-# Baseline configuration - no curriculum learning
-experiment_name: "baseline"
-wandb_project: "emotion2vec_versionb"
+# Adversarial learning configuration
+experiment_name: "adversarial_neutral_contrast"
+wandb_project: "linear_pacing_comparison"
 
 # Training settings
-batch_size: 32
+batch_size: 48
 num_epochs: 20
-learning_rate: 1e-4
+learning_rate: 9e-3
 weight_decay: 1e-5
 
 # Model settings
@@ -16,14 +16,12 @@ num_classes: 4
 # Dataset settings
 train_dataset: "MSPI"  # MSPI, IEMO, or MSPP
 
-# Evaluation settings
-evaluation_mode: "cross"  # loso, cross_corpus, or both
+# Evaluation settings - only cross-corpus for adversarial
 val_split: 0.2
 
-# Curriculum Learning - DISABLED for baseline
-use_curriculum_learning: false
-curriculum_epochs: 0
-curriculum_pacing: "linear"
+# Adversarial Learning settings
+use_adversarial_learning: true
+adversarial_alpha: 0.5  # Weight for adversarial component
 difficulty_method: "euclidean_distance"
 
 # Expected VAD values for difficulty calculation

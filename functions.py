@@ -133,9 +133,9 @@ def calculate_difficulty(item, expected_vad, method="euclidean_distance", datase
 
     if dataset == "MSPP":
         try:
-            valence = valence * 5 / 7
-            arousal = arousal * 5 / 7
-            domination = domination * 5 / 7
+            valence = (valence - 1) * 4 / 6 + 1
+            arousal = (arousal - 1) * 4 / 6 + 1
+            domination = (domination - 1) * 4 / 6 + 1
         except TypeError:
             print(f"Scaling failed: {valence}, {arousal}, {domination}")
 
@@ -175,12 +175,16 @@ def get_curriculum_pacing_function(pacing_type):
 
 def create_curriculum_subset(dataset, difficulties, epoch, total_curriculum_epochs, pacing_function):
     """Create subset of data based on curriculum learning strategy"""
-    # if epoch >= total_curriculum_epochs:
-    #     # After curriculum epochs, use all data
-    #     return list(range(len(dataset)))
+    if epoch >= total_curriculum_epochs:
+        # After curriculum epochs, use all data
+        return list(range(len(dataset)))
     
     # Calculate the fraction of data to include
     fraction = pacing_function(epoch, total_curriculum_epochs)
+    log_dict = {
+        "curriculum_fraction": fraction
+    }
+    wandb.log(log_dict)
     num_samples = int(len(dataset) * fraction)
     # Step 1: shuffle all indices
     shuffled_indices = list(range(len(difficulties)))
@@ -353,9 +357,9 @@ class FocalLossAutoWeights(nn.Module):
             counts = torch.where(counts == 0, torch.ones_like(counts), counts)
             class_weights = 1.0 / counts  # inverse frequency
             class_weights = class_weights / class_weights.sum()  # normalize weights to sum to 1
-            class_weights = 1- class_weights + 0.1
+            # class_weights = 1- class_weights + 0.1
             class_weights[1] = class_weights[1] *3
-            class_weights[0] = class_weights[1] *0.8
+            class_weights[2] = class_weights[2] *3
 
 
             class_weights = class_weights.to(self.device)
@@ -375,6 +379,8 @@ class FocalLossAutoWeights(nn.Module):
         weights = class_weights[targets]  # [B]
 
         loss = weights * focal_term * log_pt  # [B]
+        loss = focal_term * log_pt  # [B]
+
 
         if self.reduction == 'mean':
             return loss.mean()

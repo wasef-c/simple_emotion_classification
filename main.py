@@ -15,6 +15,7 @@ import argparse
 import yaml
 import random
 import math 
+import torch.optim.lr_scheduler as lr_scheduler
 
 # Add parent directory to path to access original dataset classes
 sys.path.append(str(Path(__file__).parent.parent))
@@ -25,7 +26,7 @@ import wandb
 
 # Import local modules
 from config import Config
-from model import SimpleEmotionClassifier
+from model import * #SimpleEmotionClassifier
 from functions import * #(evaluate_model, get_session_splits, calculate_metrics, calculate_difficulty, 
                     #   get_curriculum_pacing_function, create_curriculum_subset, create_confusion_matrix, create_difficulty_accuracy_plot)
 
@@ -34,6 +35,7 @@ def load_config_from_yaml(yaml_path, experiment_id=None):
     """Load configuration from YAML file and create Config object"""
     with open(yaml_path, 'r') as f:
         yaml_config = yaml.safe_load(f)
+        
     
     # Check if this is a multi-experiment config
     if 'experiments' in yaml_config:
@@ -430,7 +432,7 @@ class SimpleEmotionDataset(Dataset):
         }
 
 
-def train_epoch(model, data_loader, criterion, optimizer, device, use_difficulty_scaling = False):
+def train_epoch(model, data_loader, criterion, optimizer, scheduler, device, use_difficulty_scaling = False):
     """Train model for one epoch"""
     model.train()
     total_loss = 0
@@ -450,17 +452,19 @@ def train_epoch(model, data_loader, criterion, optimizer, device, use_difficulty
     
         # weighted loss
         if use_difficulty_scaling:
-            loss = (loss_per_sample * difficulties).mean()
+            loss = (loss_per_sample * (1+difficulties)).mean()
         else:
             loss = loss_per_sample.mean()
         loss.backward()
         optimizer.step()
         
         total_loss += loss.item()
+        current_lr = optimizer.param_groups[0]['lr']
 
         log_dict = {
-            "total_loss": loss,
-            "batch difficulty": difficulties.mean()
+            "loss": loss,
+            "batch difficulty": difficulties.mean(),
+            "lr": current_lr
         }
 
         wandb.log(log_dict)
@@ -471,6 +475,8 @@ def train_epoch(model, data_loader, criterion, optimizer, device, use_difficulty
     
     avg_loss = total_loss / len(data_loader)
     metrics = calculate_metrics(predictions, labels)
+    scheduler.step()
+
     
     return avg_loss, metrics
 
@@ -529,7 +535,7 @@ def run_loso_evaluation(config, train_dataset, test_dataset):
         criterion = FocalLossAutoWeights(num_classes=4, gamma=2.0, reduction='none', device=device)
 
         optimizer = optim.Adam(model.parameters(), lr=config.learning_rate, weight_decay=config.weight_decay)
-        
+        scheduler = lr_scheduler.CosineAnnealingLR(optimizer, T_max=config.num_epochs)
         # Get curriculum pacing function
         pacing_function = get_curriculum_pacing_function(config.curriculum_pacing)
         
@@ -555,10 +561,10 @@ def run_loso_evaluation(config, train_dataset, test_dataset):
                 if epoch == config.curriculum_epochs:
                     print(f"   Epoch {epoch+1}: Curriculum complete, using all training data")
             
-            train_loss, train_metrics = train_epoch(model, train_loader, criterion, optimizer, device, use_difficulty_scaling= config.use_difficulty_scaling)
+            train_loss, train_metrics = train_epoch(model, train_loader, criterion, optimizer, scheduler, device, use_difficulty_scaling= config.use_difficulty_scaling)
             loso_results = evaluate_model(model, loso_loader, criterion, device, create_plots=False)
             
-            if loso_results['accuracy'] > best_loso_acc:
+            if loso_results['uar'] > best_loso_acc:
                 best_loso_acc = loso_results['accuracy']
                 best_model_state = model.state_dict().copy()
         
@@ -677,6 +683,8 @@ def run_cross_corpus_evaluation(config, train_dataset, test_datasets):
     criterion = nn.CrossEntropyLoss()
     print(config)
     optimizer = optim.Adam(model.parameters(), lr=config.learning_rate, weight_decay=config.weight_decay)
+    scheduler = lr_scheduler.CosineAnnealingLR(optimizer, T_max=config.num_epochs)
+
     
     # Get curriculum pacing function
     pacing_function = get_curriculum_pacing_function(config.curriculum_pacing)
@@ -703,7 +711,7 @@ def run_cross_corpus_evaluation(config, train_dataset, test_datasets):
             if epoch == config.curriculum_epochs:
                 print(f"   Epoch {epoch+1}: Curriculum complete, using all training data")
         
-        train_loss, train_metrics = train_epoch(model, train_loader, criterion, optimizer, device, use_difficulty_scaling = config.use_difficulty_scaling)
+        train_loss, train_metrics = train_epoch(model, train_loader, criterion, optimizer,scheduler, device, use_difficulty_scaling = config.use_difficulty_scaling)
         
         val_results = evaluate_model(model, val_loader, criterion, device, create_plots=False)
         val_dict = {
@@ -754,19 +762,21 @@ def run_cross_corpus_evaluation(config, train_dataset, test_datasets):
         
         # Add test results and plots
         for test_result in test_results:
+
             dataset_name = test_result['dataset'].lower()
+            prefix = f"{train_dataset.dataset_name}_TO_{dataset_name}"
             results = test_result['results']
-            log_dict[f'test_{dataset_name}/accuracy'] = results['accuracy']
-            log_dict[f'test_{dataset_name}/uar'] = results['uar']
+            log_dict[f'{prefix}/accuracy'] = results['accuracy']
+            log_dict[f'{prefix}/uar'] = results['uar']
             
             # Add test plots
             if 'confusion_matrix' in results:
-                log_dict[f'test_{dataset_name}/confusion_matrix'] = results['confusion_matrix']
+                log_dict[f'{prefix}/confusion_matrix'] = results['confusion_matrix']
             if 'difficulty_plot' in results:
-                log_dict[f'test_{dataset_name}/difficulty_plot'] = results['difficulty_plot']
+                log_dict[f'{prefix}/difficulty_plot'] = results['difficulty_plot']
                 if 'difficulty_analysis' in results:
                     analysis = results['difficulty_analysis']
-                    log_dict[f'test_{dataset_name}/difficulty_correlation'] = analysis['difficulty_accuracy_correlation']
+                    log_dict[f'{prefix}/difficulty_correlation'] = analysis['difficulty_accuracy_correlation']
         
         wandb.log(log_dict)
     
