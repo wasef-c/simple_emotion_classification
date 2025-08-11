@@ -407,10 +407,6 @@ class SpeakerGroupedSampler:
             # Only group valid speaker IDs (not -1 for test datasets)
             if speaker_id != -1:
                 self.speaker_groups[speaker_id].append(idx)
-        
-        print(f"🗣️  Speaker Disentanglement: Found {len(self.speaker_groups)} speakers")
-        for speaker_id, indices in self.speaker_groups.items():
-            print(f"   Speaker {speaker_id}: {len(indices)} samples")
     
     def __iter__(self):
         """Generate batches grouped by speaker"""

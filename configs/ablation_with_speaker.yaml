@@ -9,7 +9,7 @@
     difficulty_method: "euclidean_distance"
     num_epochs: 30
     batch_size: 48
-    train_dataset: "IEMO"
+    train_dataset: "MSPI"
     evaluation_mode: "cross_corpus"
 
     class_weights:
