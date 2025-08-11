@@ -847,9 +847,10 @@ def run_cross_corpus_evaluation(config, train_dataset, test_datasets):
             if class_difficulties[i]
             else 1.0
         )
-        class_weights.append((1 + freq_weight) * avg_difficulty*2)
+        class_weights.append((1 + freq_weight) * avg_difficulty*3)
         freq_weights.append(freq_weight + 1)
-        print(f"📊 freq_weight: {freq_weight}")
+        print(f"📊 {i}freq_weight: {freq_weight}")
+        print(f"📊{i} avg_difficulty: {avg_difficulty}")
 
     # Normalize weights
     total_weight = sum(class_weights)
@@ -860,11 +861,14 @@ def run_cross_corpus_evaluation(config, train_dataset, test_datasets):
     class_weights = torch.tensor(class_weights).to(device)
     # class_weights[1] = class_weights[1] * 2
     # class_weights[0] = class_weights[0] * 2
-    print(f"📊 Class weights (freq × difficulty): {class_weights}")
+    
     if config.use_difficulty_scaling:
+        print(f"📊 Class weights (freq × difficulty): {class_weights}")
         criterion = nn.CrossEntropyLoss(weight=class_weights, reduction="none")
     else:
-        freq_weights = torch.tensor(class_weights).to(device)
+        print(f"📊 Class weights (freq): {freq_weights}")
+
+        freq_weights = torch.tensor(freq_weights).to(device)
         criterion = nn.CrossEntropyLoss(weight=freq_weights, reduction="none")
     optimizer = optim.Adam(
         model.parameters(), lr=config.learning_rate, weight_decay=config.weight_decay

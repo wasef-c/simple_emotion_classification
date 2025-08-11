@@ -1,5 +1,5 @@
   # configs/ablation_study.yaml
-  wandb_project: "MSPP_Simple_seed_42"
+  wandb_project: "IEMO_Simple_seed_42"
 
   # Base template for all experiments
   template_config: &template
@@ -8,8 +8,8 @@
     use_curriculum_learning: true
     difficulty_method: "euclidean_distance"
     num_epochs: 30
-    batch_size: 64
-    train_dataset: "MSPP"
+    batch_size: 32
+    train_dataset: "IEMO"
     evaluation_mode: "cross_corpus"
 
     class_weights:
@@ -31,31 +31,32 @@
 
   experiments:
     # - <<: *template
-    #   name: "Scaling + Spkr MSPP"
+    #   name: "Scaling + Spkr IEMO"
     #   use_curriculum_learning: false
 
 
     - <<: *template
-      name: "Curriculum+ Spkr MSPP"
-      curriculum_pacing: "linear"
-      use_curriculum_learning: true
-    
-    - <<: *template
-      name: "Full System + Spkr MSPP"
+      name: "Curriculum+ Spkr IEMO"
       curriculum_pacing: "linear"
       use_curriculum_learning: true
       use_difficulty_scaling: false
 
+    
+    - <<: *template
+      name: "Full System + Spkr IEMO"
+      curriculum_pacing: "linear"
+      use_curriculum_learning: true
+
 
     - <<: *template
-      name: "Spkr Only MSPP"
+      name: "Spkr Only IEMO"
       # curriculum_pacing: "sqrt"
       use_curriculum_learning: false
       use_difficulty_scaling: false
   
 
     - <<: *template
-      name: "Baseline MSPP"
+      name: "Baseline IEMO"
       # curriculum_pacing: "sqrt"
       use_curriculum_learning: false
       use_difficulty_scaling: false
@@ -63,7 +64,7 @@
 
 
     # - <<: *template
-    #   name: "Curriculum Only MSPP" 
+    #   name: "Curriculum Only IEMO" 
     #   # curriculum_pacing: "sqrt"
     #   use_curriculum_learning: true
     #   use_difficulty_scaling: false
@@ -77,11 +78,11 @@
     #   use_speaker_disentanglement: false
 
     # - <<: *template
-    #   name: "Preset Curriculum- Full System MSPP"
+    #   name: "Preset Curriculum- Full System IEMO"
     #   curriculum_type: "preset_order"
   
     # - <<: *template
-    #   name: "Preset Curriculum_ Only MSPP"
+    #   name: "Preset Curriculum_ Only IEMO"
     #   use_difficulty_scaling: False
     #   use_speaker_disentanglement: False
     #   curriculum_type: "preset_order"
