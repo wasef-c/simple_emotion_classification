@@ -453,8 +453,8 @@ def train_epoch(model, data_loader, criterion, optimizer, scheduler, device, use
         loss_per_sample = criterion(logits, batch_labels)  # reduction='none'
     
         # weighted loss
-        # if use_difficulty_scaling:
-        #     loss = (loss_per_sample * (1+difficulties)).mean()
+        if use_difficulty_scaling:
+            loss = (loss_per_sample * (1+difficulties)).mean()
         # else:
         loss = loss_per_sample.mean()
         loss.backward()
@@ -723,6 +723,7 @@ def run_cross_corpus_evaluation(config, train_dataset, test_datasets):
     if  config.use_difficulty_scaling:
         criterion = nn.CrossEntropyLoss(weight=class_weights, reduction='none')
     else:
+        freq_weights = torch.tensor(class_weights).to(device)
         criterion = nn.CrossEntropyLoss(weight = freq_weights, reduction='none')
     optimizer = optim.Adam(model.parameters(), lr=config.learning_rate, weight_decay=config.weight_decay)
     scheduler = lr_scheduler.CosineAnnealingLR(optimizer, T_max=config.num_epochs)
