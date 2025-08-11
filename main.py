@@ -847,10 +847,11 @@ def run_cross_corpus_evaluation(config, train_dataset, test_datasets):
             if class_difficulties[i]
             else 1.0
         )
-        class_weights.append((1 + freq_weight) * avg_difficulty*3)
+        class_weights.append((1 + freq_weight) * (1+avg_difficulty)*2)
         freq_weights.append(freq_weight + 1)
-        print(f"📊 {i}freq_weight: {freq_weight}")
-        print(f"📊{i} avg_difficulty: {avg_difficulty}")
+        print("########### LABEL {i} ###############")
+        print(f"freq_weight: {freq_weight} ----   avg_difficulty: {avg_difficulty}")
+
 
     # Normalize weights
     total_weight = sum(class_weights)

@@ -1,5 +1,5 @@
   # configs/ablation_study.yaml
-  wandb_project: "IEMO_Simple_seed_42"
+  wandb_project: "MSPI_Simple_seed_42"
 
   # Base template for all experiments
   template_config: &template
@@ -9,7 +9,7 @@
     difficulty_method: "euclidean_distance"
     num_epochs: 30
     batch_size: 32
-    train_dataset: "IEMO"
+    train_dataset: "MSPI"
     evaluation_mode: "cross_corpus"
 
     class_weights:
@@ -24,39 +24,39 @@
     use_speaker_disentanglement: True
 
     expected_vad:
-      0: [3.0, 3.0, 2.0]  # neutral
-      1: [4.2, 3.8, 3.5]  # happy
-      2: [1.8, 2.2, 2.5]  # sad
-      3: [2.5, 4.0, 3.2]  # anger
+        0: [3.0, 2.5, 3.0]  # neutral  (mid valence, slightly higher arousal than 2.0)
+        1: [4.0, 4.0, 4.0]  # happy    (high valence, high arousal, high dominance)
+        2: [1.8, 2.2, 2.0]  # sad      (low valence, low arousal, low dominance)
+        3: [1.8, 4.2, 4.0]  # anger    (low valence, high arousal, high dominance)
 
   experiments:
     # - <<: *template
-    #   name: "Scaling + Spkr IEMO"
+    #   name: "Scaling + Spkr MSPI"
     #   use_curriculum_learning: false
 
 
     - <<: *template
-      name: "Curriculum+ Spkr IEMO"
+      name: "Curriculum+ Spkr MSPI"
       curriculum_pacing: "linear"
       use_curriculum_learning: true
       use_difficulty_scaling: false
 
     
     - <<: *template
-      name: "Full System + Spkr IEMO"
+      name: "Full System + Spkr MSPI"
       curriculum_pacing: "linear"
       use_curriculum_learning: true
 
 
     - <<: *template
-      name: "Spkr Only IEMO"
+      name: "Spkr Only MSPI"
       # curriculum_pacing: "sqrt"
       use_curriculum_learning: false
       use_difficulty_scaling: false
   
 
     - <<: *template
-      name: "Baseline IEMO"
+      name: "Baseline MSPI"
       # curriculum_pacing: "sqrt"
       use_curriculum_learning: false
       use_difficulty_scaling: false
@@ -64,7 +64,7 @@
 
 
     # - <<: *template
-    #   name: "Curriculum Only IEMO" 
+    #   name: "Curriculum Only MSPI" 
     #   # curriculum_pacing: "sqrt"
     #   use_curriculum_learning: true
     #   use_difficulty_scaling: false
@@ -78,11 +78,11 @@
     #   use_speaker_disentanglement: false
 
     # - <<: *template
-    #   name: "Preset Curriculum- Full System IEMO"
+    #   name: "Preset Curriculum- Full System MSPI"
     #   curriculum_type: "preset_order"
   
     # - <<: *template
-    #   name: "Preset Curriculum_ Only IEMO"
+    #   name: "Preset Curriculum_ Only MSPI"
     #   use_difficulty_scaling: False
     #   use_speaker_disentanglement: False
     #   curriculum_type: "preset_order"
