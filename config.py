@@ -48,3 +48,6 @@ class Config:
         # Class labels
         self.class_names = ["neutral", "happy", "sad", "anger"]
         self.use_difficulty_scaling = False
+        
+        # Speaker disentanglement
+        self.use_speaker_disentanglement = False

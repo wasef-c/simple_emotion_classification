@@ -21,6 +21,7 @@
     curriculum_epochs: 15
     curriculum_pacing: "sqrt"
     use_difficulty_scaling: True
+    use_speaker_disentanglement: True
 
     expected_vad:
       0: [3.0, 3.0, 3.0]  # neutral
@@ -30,17 +31,17 @@
 
   experiments:
     - <<: *template
-      name: "Difficulty Scaling Only"
+      name: "Scaling + Spkr"
       use_curriculum_learning: false
 
 
     - <<: *template
-      name: "Curriculum_Only"
+      name: "Curriculum+ Spkr"
       curriculum_pacing: "linear"
       use_curriculum_learning: true
     
     - <<: *template
-      name: "Full System"
+      name: "Full System + Spkr"
       curriculum_pacing: "linear"
       use_curriculum_learning: true
       use_difficulty_scaling: false
@@ -48,7 +49,7 @@
   
 
     - <<: *template
-      name: "baseline"
+      name: "Spkr Only"
       # curriculum_pacing: "sqrt"
       use_curriculum_learning: false
       use_difficulty_scaling: false

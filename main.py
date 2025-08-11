@@ -71,7 +71,7 @@ def load_config_from_yaml(yaml_path, experiment_id=None):
     # Define type conversions for config parameters
     float_params = ['learning_rate', 'weight_decay', 'dropout', 'val_split']
     int_params = ['batch_size', 'num_epochs', 'hidden_dim', 'num_classes', 'curriculum_epochs']
-    bool_params = ['use_curriculum_learning', 'use_difficulty_scaling']
+    bool_params = ['use_curriculum_learning', 'use_difficulty_scaling', 'use_speaker_disentanglement']
     string_params = ['wandb_project', 'experiment_name']
     
     # Update config with YAML values with proper type conversion
@@ -510,8 +510,10 @@ def run_loso_evaluation(config, train_dataset, test_dataset):
         # Create base datasets
         train_subset = Subset(train_dataset, train_indices)
         test_subset = Subset(train_dataset, test_indices)
-        cross_corpus_loader = DataLoader(test_dataset, batch_size=config.batch_size, shuffle=False)
-        loso_loader = DataLoader(test_subset, batch_size=config.batch_size, shuffle=False)
+        cross_corpus_loader = create_data_loader(test_dataset, config.batch_size, shuffle=False, 
+                                                 use_speaker_disentanglement=False)  # No speaker grouping for test
+        loso_loader = create_data_loader(test_subset, config.batch_size, shuffle=False, 
+                                       use_speaker_disentanglement=False)  # No speaker grouping for test
         
         # Get actual feature dimension from dataset
         sample_features = train_dataset[0]['features']
@@ -551,13 +553,15 @@ def run_loso_evaluation(config, train_dataset, test_dataset):
                 )
                 curriculum_train_indices = [train_indices[i] for i in curriculum_indices]
                 curriculum_subset = Subset(train_dataset, curriculum_train_indices)
-                train_loader = DataLoader(curriculum_subset, batch_size=config.batch_size, shuffle=False)
+                train_loader = create_data_loader(curriculum_subset, config.batch_size, shuffle=True,
+                                                use_speaker_disentanglement=config.use_speaker_disentanglement)
                 
                 fraction = pacing_function(epoch, config.curriculum_epochs)
                 print(f"   Epoch {epoch+1}: Using {len(curriculum_indices)}/{len(train_indices)} samples ({fraction:.2f})")
             else:
                 # Use all training data
-                train_loader = DataLoader(train_subset, batch_size=config.batch_size, shuffle=False)
+                train_loader = create_data_loader(train_subset, config.batch_size, shuffle=True,
+                                                use_speaker_disentanglement=config.use_speaker_disentanglement)
                 if epoch == config.curriculum_epochs:
                     print(f"   Epoch {epoch+1}: Curriculum complete, using all training data")
             
@@ -707,7 +711,8 @@ def run_cross_corpus_evaluation(config, train_dataset, test_datasets):
             print(f"   Epoch {epoch+1}: Using {len(curriculum_indices)}/{len(train_indices)} samples ({fraction:.2f})")
         else:
             # Use all training data
-            train_loader = DataLoader(train_subset, batch_size=config.batch_size, shuffle=True)
+            train_loader = create_data_loader(train_subset, config.batch_size, shuffle=True,
+                                             use_speaker_disentanglement=config.use_speaker_disentanglement)
             if epoch == config.curriculum_epochs:
                 print(f"   Epoch {epoch+1}: Curriculum complete, using all training data")
         

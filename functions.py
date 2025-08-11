@@ -14,6 +14,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import wandb
 import random
+from torch.utils.data import DataLoader, Dataset, Subset
+
 
 def calculate_metrics(predictions, labels):
     """Calculate basic classification metrics"""
@@ -388,3 +390,108 @@ class FocalLossAutoWeights(nn.Module):
             return loss.sum()
         else:  # 'none'
             return loss
+
+
+class SpeakerGroupedSampler:
+    """Sampler that groups samples by speaker_id for speaker disentanglement"""
+    
+    def __init__(self, dataset, batch_size, shuffle=True):
+        self.dataset = dataset
+        self.batch_size = batch_size
+        self.shuffle = shuffle
+        
+        # Group indices by speaker_id
+        self.speaker_groups = defaultdict(list)
+        for idx, item in enumerate(dataset):
+            speaker_id = item['speaker_id'] if isinstance(item, dict) else dataset[idx]['speaker_id']
+            # Only group valid speaker IDs (not -1 for test datasets)
+            if speaker_id != -1:
+                self.speaker_groups[speaker_id].append(idx)
+        
+        print(f"🗣️  Speaker Disentanglement: Found {len(self.speaker_groups)} speakers")
+        for speaker_id, indices in self.speaker_groups.items():
+            print(f"   Speaker {speaker_id}: {len(indices)} samples")
+    
+    def __iter__(self):
+        """Generate batches grouped by speaker"""
+        all_batches = []
+        
+        # Create batches for each speaker
+        for speaker_id, indices in self.speaker_groups.items():
+            if self.shuffle:
+                indices = indices.copy()
+                random.shuffle(indices)
+            
+            # Create batches from this speaker's samples
+            for i in range(0, len(indices), self.batch_size):
+                batch = indices[i:i + self.batch_size]
+                all_batches.append(batch)
+        
+        # Shuffle the order of batches (not within batches)
+        if self.shuffle:
+            random.shuffle(all_batches)
+        
+        # Yield batches
+        for batch in all_batches:
+            yield batch
+    
+    def __len__(self):
+        """Total number of batches"""
+        total_batches = 0
+        for indices in self.speaker_groups.values():
+            total_batches += (len(indices) + self.batch_size - 1) // self.batch_size
+        return total_batches
+
+
+class SpeakerGroupedDataLoader:
+    """DataLoader wrapper that uses SpeakerGroupedSampler"""
+    
+    def __init__(self, dataset, batch_size, shuffle=True, num_workers=0):
+        self.dataset = dataset
+        self.batch_size = batch_size
+        self.sampler = SpeakerGroupedSampler(dataset, batch_size, shuffle)
+        self.num_workers = num_workers
+    
+    def __iter__(self):
+        """Iterate through speaker-grouped batches"""
+        for batch_indices in self.sampler:
+            batch = {
+                'features': [],
+                'label': [],
+                'speaker_id': [],
+                'session': [],
+                'dataset': [],
+                'difficulty': []
+            }
+            
+            for idx in batch_indices:
+                item = self.dataset[idx]
+                
+                batch['features'].append(item['features'])
+                batch['label'].append(item['label'])
+                batch['speaker_id'].append(item['speaker_id'])
+                batch['session'].append(item['session'])
+                batch['dataset'].append(item['dataset'])
+                batch['difficulty'].append(item['difficulty'])
+            
+            # Stack tensors
+            batch['features'] = torch.stack(batch['features'])
+            batch['label'] = torch.stack(batch['label'])
+            batch['speaker_id'] = torch.tensor(batch['speaker_id'])
+            batch['session'] = torch.tensor(batch['session'])
+            batch['difficulty'] = torch.tensor(batch['difficulty'], dtype=torch.float32)
+            
+            yield batch
+    
+    def __len__(self):
+        return len(self.sampler)
+
+
+def create_data_loader(dataset, batch_size, shuffle=True, use_speaker_disentanglement=False, num_workers=0):
+    """Create appropriate data loader based on speaker disentanglement setting"""
+    if use_speaker_disentanglement:
+        print("🗣️  Using Speaker-Grouped DataLoader")
+        return SpeakerGroupedDataLoader(dataset, batch_size, shuffle, num_workers)
+    else:
+        print("📦 Using Standard DataLoader")
+        return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers)
