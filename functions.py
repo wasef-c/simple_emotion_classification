@@ -50,7 +50,7 @@ def evaluate_model(model, data_loader, criterion, device, return_difficulties=Tr
             logits = model(features)
             loss = criterion(logits, batch_labels)
             
-            total_loss += loss.item()
+            total_loss += loss.mean().item()
             
             # Get predictions
             preds = torch.argmax(logits, dim=-1).cpu().numpy()
@@ -357,18 +357,21 @@ class FocalLossAutoWeights(nn.Module):
             counts = torch.bincount(targets, minlength=self.num_classes).float()
             # Avoid division by zero
             counts = torch.where(counts == 0, torch.ones_like(counts), counts)
-            class_weights = 1.0 / counts  # inverse frequency
+            class_weights = 1.0 / (counts + 0.1)  # inverse frequency
             class_weights = class_weights / class_weights.sum()  # normalize weights to sum to 1
             # class_weights = 1- class_weights + 0.1
-            class_weights[1] = class_weights[1] *3
-            class_weights[2] = class_weights[2] *3
+            class_weights[1] = class_weights[1] *2.5
+            # class_weights[2] = class_weights[2] *1.2
 
 
             class_weights = class_weights.to(self.device)
             
 
         # Compute log softmax
-        log_probs = F.log_softmax(logits, dim=-1)  # [B, C]
+        temperature = 2000 # tune this, bigger means softer probs
+        scaled_logits = logits / temperature
+
+        log_probs = F.log_softmax(scaled_logits, dim=-1)  # [B, C]
         probs = torch.exp(log_probs)  # [B, C]
 
         targets = targets.long()
@@ -378,10 +381,18 @@ class FocalLossAutoWeights(nn.Module):
         focal_term = (1 - pt) ** self.gamma  # [B]
 
         # Get weights for each target in the batch
-        weights = class_weights[targets]  # [B]
+        weights = class_weights[targets]*0.5 # [B]
+        print("logits min:", scaled_logits.min().item(), "max:", scaled_logits.max().item())
+
+        print(f"WEIGHTS = {weights}")
+        print(f"focal_term = {focal_term}")
+        #   Add after line 367 in functions.py:
+
+
 
         loss = weights * focal_term * log_pt  # [B]
-        loss = focal_term * log_pt  # [B]
+        # loss = focal_term * log_pt  # [B]
+
 
 
         if self.reduction == 'mean':
@@ -486,7 +497,6 @@ class SpeakerGroupedDataLoader:
 def create_data_loader(dataset, batch_size, shuffle=True, use_speaker_disentanglement=False, num_workers=0):
     """Create appropriate data loader based on speaker disentanglement setting"""
     if use_speaker_disentanglement:
-        print("🗣️  Using Speaker-Grouped DataLoader")
         return SpeakerGroupedDataLoader(dataset, batch_size, shuffle, num_workers)
     else:
         print("📦 Using Standard DataLoader")

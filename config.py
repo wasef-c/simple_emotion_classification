@@ -32,6 +32,7 @@ class Config:
         self.curriculum_epochs = 10  # number of epochs to gradually introduce samples
         self.curriculum_pacing = "linear"  # or "sqrt", "log"
         self.difficulty_method = "euclidean_distance"  # method to calculate difficulty
+        self.curriculum_type = "difficulty"  # "difficulty" or "preset_order"
         
         # Expected VAD values for difficulty calculation
         self.expected_vad = {
@@ -42,7 +43,7 @@ class Config:
         }
         
         # WandB settings
-        self.wandb_project = "linear_pacing_comparison"
+        self.wandb_project = "Full_Ablation"
         self.experiment_name = "baseline"
         
         # Class labels

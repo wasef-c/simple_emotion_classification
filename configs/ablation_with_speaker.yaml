@@ -9,7 +9,7 @@
     difficulty_method: "euclidean_distance"
     num_epochs: 30
     batch_size: 48
-    train_dataset: "MSPI"
+    train_dataset: "IEMO"
     evaluation_mode: "cross_corpus"
 
     class_weights:
@@ -45,8 +45,7 @@
       curriculum_pacing: "linear"
       use_curriculum_learning: true
       use_difficulty_scaling: false
-  
-  
+
 
     - <<: *template
       name: "Spkr Only"
@@ -55,3 +54,17 @@
       use_difficulty_scaling: false
   
 
+    - <<: *template
+      name: "Baseline"
+      # curriculum_pacing: "sqrt"
+      use_curriculum_learning: false
+      use_difficulty_scaling: false
+      use_speaker_disentanglement: false
+
+
+    - <<: *template
+      name: "Curriculum Only"
+      # curriculum_pacing: "sqrt"
+      use_curriculum_learning: true
+      use_difficulty_scaling: false
+      use_speaker_disentanglement: false

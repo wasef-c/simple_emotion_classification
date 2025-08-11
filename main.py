@@ -72,7 +72,7 @@ def load_config_from_yaml(yaml_path, experiment_id=None):
     float_params = ['learning_rate', 'weight_decay', 'dropout', 'val_split']
     int_params = ['batch_size', 'num_epochs', 'hidden_dim', 'num_classes', 'curriculum_epochs']
     bool_params = ['use_curriculum_learning', 'use_difficulty_scaling', 'use_speaker_disentanglement']
-    string_params = ['wandb_project', 'experiment_name']
+    string_params = ['wandb_project', 'experiment_name', 'curriculum_type', 'difficulty_method', 'curriculum_pacing']
     
     # Update config with YAML values with proper type conversion
     for key, value in yaml_config.items():
@@ -367,6 +367,9 @@ class SimpleEmotionDataset(Dataset):
             
             label = item["label"]
             
+            # Get curriculum order from dataset
+            curriculum_order = item.get('curriculum_order', 0.5)  # Default to middle if missing
+            
             # Get VAD values for difficulty calculation
             valence = item.get('valence', item.get('EmoVal', None))
             arousal = item.get('arousal',  item.get('EmoAct', None))
@@ -383,16 +386,17 @@ class SimpleEmotionDataset(Dataset):
             arousal = fix_vad(arousal)
             domination = fix_vad(domination)
             
-            # Calculate difficulty if config is provided
-
-            item_with_vad = {
-                'label': label,
-                'valence': valence,
-                'arousal': arousal,
-                'domination': domination
-            }
-            # print(item_with_vad)
-            difficulty = calculate_difficulty(item_with_vad, config.expected_vad, config.difficulty_method, dataset = dataset_name)
+            # Calculate difficulty based on curriculum type
+            if config.curriculum_type == "preset_order":
+                difficulty = curriculum_order
+            else:  # "difficulty"
+                item_with_vad = {
+                    'label': label,
+                    'valence': valence,
+                    'arousal': arousal,
+                    'domination': domination
+                }
+                difficulty = calculate_difficulty(item_with_vad, config.expected_vad, config.difficulty_method, dataset = dataset_name)
             
             self.data.append({
                 "features": features,
@@ -447,7 +451,8 @@ def train_epoch(model, data_loader, criterion, optimizer, scheduler, device, use
         
         optimizer.zero_grad()
         logits = model(features)
-        loss = criterion(logits, batch_labels) # difficulties
+        # print(f"LOGITSSSS -- {logits}")
+        # loss = criterion(logits, batch_labels) # difficulties
         loss_per_sample = criterion(logits, batch_labels)  # reduction='none'
     
         # weighted loss
@@ -504,7 +509,7 @@ def run_loso_evaluation(config, train_dataset, test_dataset):
         
         test_indices = train_sessions[test_session]
         
-        # Get difficulties for curriculum learning
+        # Get difficulties for curriculum learning (use the difficulty we calculated in dataset)
         train_difficulties = [train_dataset.data[i]['difficulty'] for i in train_indices]
         
         # Create base datasets
@@ -642,7 +647,7 @@ def run_cross_corpus_evaluation(config, train_dataset, test_datasets):
     print(f"📈 Training samples: {len(train_indices)}")
     print(f"📋 Validation samples: {len(val_indices)}")
     
-    # Get difficulties for curriculum learning
+    # Get difficulties for curriculum learning (use the difficulty we calculated in dataset)  
     train_difficulties = [train_dataset.data[i]['difficulty'] for i in train_indices]
     
     # Create datasets
@@ -684,8 +689,11 @@ def run_cross_corpus_evaluation(config, train_dataset, test_datasets):
         dropout=config.dropout
     ).to(device)
     
-    criterion = nn.CrossEntropyLoss()
-    print(config)
+    # criterion = FocalLossAutoWeights(num_classes=4, gamma=2.0, reduction='none', device=device)
+    # print(config)
+    class_weights = torch.tensor([1.0, 2.0, 1.8, 1.5]).to(device)  # adjust weights as needed
+
+    criterion = nn.CrossEntropyLoss(weight=class_weights, reduction = 'none')
     optimizer = optim.Adam(model.parameters(), lr=config.learning_rate, weight_decay=config.weight_decay)
     scheduler = lr_scheduler.CosineAnnealingLR(optimizer, T_max=config.num_epochs)
 
