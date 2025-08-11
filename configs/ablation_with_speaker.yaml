@@ -70,6 +70,13 @@
       use_speaker_disentanglement: false
 
     - <<: *template
+      name: "Curriculum +Scaling" 
+      # curriculum_pacing: "sqrt"
+      use_curriculum_learning: true
+      use_difficulty_scaling: true
+      use_speaker_disentanglement: false
+
+    - <<: *template
       name: "Preset Curriculum- Full System MSPI"
       curriculum_type: "preset_order"
   

@@ -43,7 +43,7 @@ class Config:
         }
         
         # WandB settings
-        self.wandb_project = "Full_Ablation_V2"
+        self.wandb_project = "Full_Ablation_V3"
         self.experiment_name = "baseline"
         
         # Class labels

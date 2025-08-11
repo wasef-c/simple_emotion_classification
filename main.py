@@ -453,10 +453,10 @@ def train_epoch(model, data_loader, criterion, optimizer, scheduler, device, use
         loss_per_sample = criterion(logits, batch_labels)  # reduction='none'
     
         # weighted loss
-        if use_difficulty_scaling:
-            loss = (loss_per_sample * (1+difficulties)).mean()
-        else:
-            loss = loss_per_sample.mean()
+        # if use_difficulty_scaling:
+        #     loss = (loss_per_sample * (1+difficulties)).mean()
+        # else:
+        loss = loss_per_sample.mean()
         loss.backward()
         optimizer.step()
         
@@ -701,6 +701,7 @@ def run_cross_corpus_evaluation(config, train_dataset, test_datasets):
         class_difficulties[label].append(difficulty)
     
     class_weights = []
+    freq_weights = []
     for i in range(4):
         # freq_weight = 1.0 / class_counts[i] if class_counts[i] > 0 else 1.0
         freq_ratio = class_counts[i] / total_samples
@@ -708,6 +709,7 @@ def run_cross_corpus_evaluation(config, train_dataset, test_datasets):
         freq_weight = (1.0 / freq_ratio) / 4
         avg_difficulty = sum(class_difficulties[i]) / len(class_difficulties[i]) if class_difficulties[i] else 1.0
         class_weights.append((1+freq_weight) * avg_difficulty)
+        freq_weights.append(freq_weight+1)
         print(f"📊 freq_weight: {freq_weight}")
     
     # Normalize weights
@@ -715,9 +717,13 @@ def run_cross_corpus_evaluation(config, train_dataset, test_datasets):
     class_weights = [w / total_weight * 4 for w in class_weights]  # Scale to average of 1.0
     
     class_weights = torch.tensor(class_weights).to(device)
+    class_weights[1]= class_weights[1] *2
+    class_weights[0]= class_weights[0] *2
     print(f"📊 Class weights (freq × difficulty): {class_weights}")
-    
-    criterion = nn.CrossEntropyLoss(weight=class_weights, reduction='none')
+    if  config.use_difficulty_scaling:
+        criterion = nn.CrossEntropyLoss(weight=class_weights, reduction='none')
+    else:
+        criterion = nn.CrossEntropyLoss(weight = freq_weights, reduction='none')
     optimizer = optim.Adam(model.parameters(), lr=config.learning_rate, weight_decay=config.weight_decay)
     scheduler = lr_scheduler.CosineAnnealingLR(optimizer, T_max=config.num_epochs)
 
