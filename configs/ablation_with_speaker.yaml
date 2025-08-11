@@ -9,7 +9,7 @@
     difficulty_method: "euclidean_distance"
     num_epochs: 30
     batch_size: 48
-    train_dataset: "IEMO"
+    train_dataset: "MSPI"
     evaluation_mode: "cross_corpus"
 
     class_weights:
@@ -31,31 +31,31 @@
 
   experiments:
     - <<: *template
-      name: "Scaling + Spkr"
+      name: "Scaling + Spkr MSPI"
       use_curriculum_learning: false
 
 
     - <<: *template
-      name: "Curriculum+ Spkr"
+      name: "Curriculum+ Spkr MSPI"
       curriculum_pacing: "linear"
       use_curriculum_learning: true
     
     - <<: *template
-      name: "Full System + Spkr"
+      name: "Full System + Spkr MSPI"
       curriculum_pacing: "linear"
       use_curriculum_learning: true
       use_difficulty_scaling: false
 
 
     - <<: *template
-      name: "Spkr Only"
+      name: "Spkr Only MSPI"
       # curriculum_pacing: "sqrt"
       use_curriculum_learning: false
       use_difficulty_scaling: false
   
 
     - <<: *template
-      name: "Baseline"
+      name: "Baseline MSPI"
       # curriculum_pacing: "sqrt"
       use_curriculum_learning: false
       use_difficulty_scaling: false
@@ -63,8 +63,18 @@
 
 
     - <<: *template
-      name: "Curriculum Only"
+      name: "Curriculum Only MSPI" 
       # curriculum_pacing: "sqrt"
       use_curriculum_learning: true
       use_difficulty_scaling: false
       use_speaker_disentanglement: false
+
+    - <<: *template
+      name: "Preset Curriculum- Full System MSPI"
+      curriculum_type: "preset_order"
+  
+    - <<: *template
+      name: "Preset Curriculum_ Only MSPI"
+      use_difficulty_scaling: False
+      use_speaker_disentanglement: False
+      curriculum_type: "preset_order"

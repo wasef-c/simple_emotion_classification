@@ -175,7 +175,7 @@ def get_curriculum_pacing_function(pacing_type):
         return lambda epoch, total_epochs: 1.0  # No pacing
 
 
-def create_curriculum_subset(dataset, difficulties, epoch, total_curriculum_epochs, pacing_function):
+def create_curriculum_subset(dataset, difficulties, epoch, total_curriculum_epochs, pacing_function, use_preset = False):
     """Create subset of data based on curriculum learning strategy"""
     if epoch >= total_curriculum_epochs:
         # After curriculum epochs, use all data
@@ -193,7 +193,11 @@ def create_curriculum_subset(dataset, difficulties, epoch, total_curriculum_epoc
     random.shuffle(shuffled_indices)
     
     # Step 2: sort the shuffled indices by difficulty (keeps random tie-breaks)
-    sorted_indices = sorted(shuffled_indices, key=lambda i: difficulties[i])
+    if use_preset:
+        # For HuggingFace Dataset
+        sorted_indices = list(range(len(dataset)))
+    else:
+        sorted_indices = sorted(shuffled_indices, key=lambda i: difficulties[i])
     
     # Step 3: take the easiest subset
     return sorted_indices[:num_samples]
@@ -499,5 +503,5 @@ def create_data_loader(dataset, batch_size, shuffle=True, use_speaker_disentangl
     if use_speaker_disentanglement:
         return SpeakerGroupedDataLoader(dataset, batch_size, shuffle, num_workers)
     else:
-        print("📦 Using Standard DataLoader")
+        # print("📦 Using Standard DataLoader")
         return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers)

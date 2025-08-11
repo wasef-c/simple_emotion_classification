@@ -212,7 +212,7 @@ def run_experiment(config):
             test_dataset = SimpleEmotionDataset("MSPI", config=config)
             print(f"🚀 Training: IEMO -> MSPI")
     elif config.train_dataset == "MSPP":
-        train_dataset = SimpleEmotionDataset("MSPP", config=config, Train=True)
+        train_dataset = train_dataset("MSPP", config=config, Train=True)
         if config.evaluation_mode == "cross_corpus":
             test_datasets = [
                 SimpleEmotionDataset("IEMO", config=config),
@@ -385,18 +385,13 @@ class SimpleEmotionDataset(Dataset):
             valence = fix_vad(valence)
             arousal = fix_vad(arousal)
             domination = fix_vad(domination)
-            
-            # Calculate difficulty based on curriculum type
-            if config.curriculum_type == "preset_order":
-                difficulty = curriculum_order
-            else:  # "difficulty"
-                item_with_vad = {
-                    'label': label,
-                    'valence': valence,
-                    'arousal': arousal,
-                    'domination': domination
-                }
-                difficulty = calculate_difficulty(item_with_vad, config.expected_vad, config.difficulty_method, dataset = dataset_name)
+            item_with_vad = {
+                'label': label,
+                'valence': valence,
+                'arousal': arousal,
+                'domination': domination
+            }
+            difficulty = calculate_difficulty(item_with_vad, config.expected_vad, config.difficulty_method, dataset = dataset_name)
             
             self.data.append({
                 "features": features,
@@ -405,6 +400,7 @@ class SimpleEmotionDataset(Dataset):
                 "session": session,
                 "dataset": dataset_name,
                 "difficulty": difficulty,
+                "curriculum_order": curriculum_order,
                 "valence": valence,
                 "arousal": arousal,
                 "domination": domination
@@ -432,7 +428,8 @@ class SimpleEmotionDataset(Dataset):
             "speaker_id": item["speaker_id"],
             "session": item["session"],
             "dataset": item["dataset"],
-            "difficulty": item["difficulty"]
+            "difficulty": item["difficulty"],
+            "curriculum_order": item["curriculum_order"]
         }
 
 
@@ -638,10 +635,14 @@ def run_cross_corpus_evaluation(config, train_dataset, test_datasets):
     # Create train/validation split
     total_samples = len(train_dataset)
     indices = list(range(total_samples))
+ 
     np.random.shuffle(indices)
     
     val_size = int(total_samples * config.val_split)
     train_indices = indices[val_size:]
+    if config.curriculum_type == "preset_order":
+    # Sort indices by curriculum_order
+        train_indices.sort(key=lambda i: train_dataset[i]["curriculum_order"])
     val_indices = indices[:val_size]
     
     print(f"📈 Training samples: {len(train_indices)}")
@@ -689,11 +690,34 @@ def run_cross_corpus_evaluation(config, train_dataset, test_datasets):
         dropout=config.dropout
     ).to(device)
     
-    # criterion = FocalLossAutoWeights(num_classes=4, gamma=2.0, reduction='none', device=device)
-    # print(config)
-    class_weights = torch.tensor([1.0, 2.0, 1.8, 1.5]).to(device)  # adjust weights as needed
-
-    criterion = nn.CrossEntropyLoss(weight=class_weights, reduction = 'none')
+    # Calculate class weights = (1/frequency) * average_difficulty
+    class_counts = [0, 0, 0, 0]
+    class_difficulties = [[], [], [], []]
+    
+    for item in train_dataset.data:
+        label = item['label']
+        difficulty = item['difficulty']
+        class_counts[label] += 1
+        class_difficulties[label].append(difficulty)
+    
+    class_weights = []
+    for i in range(4):
+        # freq_weight = 1.0 / class_counts[i] if class_counts[i] > 0 else 1.0
+        freq_ratio = class_counts[i] / total_samples
+        # proportion of this class
+        freq_weight = (1.0 / freq_ratio) / 4
+        avg_difficulty = sum(class_difficulties[i]) / len(class_difficulties[i]) if class_difficulties[i] else 1.0
+        class_weights.append((1+freq_weight) * avg_difficulty)
+        print(f"📊 freq_weight: {freq_weight}")
+    
+    # Normalize weights
+    total_weight = sum(class_weights)
+    class_weights = [w / total_weight * 4 for w in class_weights]  # Scale to average of 1.0
+    
+    class_weights = torch.tensor(class_weights).to(device)
+    print(f"📊 Class weights (freq × difficulty): {class_weights}")
+    
+    criterion = nn.CrossEntropyLoss(weight=class_weights, reduction='none')
     optimizer = optim.Adam(model.parameters(), lr=config.learning_rate, weight_decay=config.weight_decay)
     scheduler = lr_scheduler.CosineAnnealingLR(optimizer, T_max=config.num_epochs)
 
@@ -707,9 +731,13 @@ def run_cross_corpus_evaluation(config, train_dataset, test_datasets):
         
         # Create curriculum subset if enabled
         if config.use_curriculum_learning and epoch < config.curriculum_epochs:
+            if config.curriculum_type == "preset_order":
+                use_preset = True
+            else:
+                use_preset = False
             curriculum_indices = create_curriculum_subset(
                 train_indices, train_difficulties, epoch, 
-                config.curriculum_epochs, pacing_function
+                config.curriculum_epochs, pacing_function, use_preset
             )
             curriculum_train_indices = [train_indices[i] for i in curriculum_indices]
             curriculum_subset = Subset(train_dataset, curriculum_train_indices)
