@@ -498,6 +498,9 @@ def train_epoch(
 ):
     """Train model for one epoch"""
     model.train()
+    # Verify dropout is active
+    if hasattr(model, 'dropout'):
+        print(f"      Training with dropout rate: {model.dropout.p:.3f}, training mode: {model.training}")
     total_loss = 0
     predictions = []
     labels = []
@@ -514,9 +517,9 @@ def train_epoch(
         # loss = criterion(logits, batch_labels) # difficulties
         loss_per_sample = criterion(logits, batch_labels)  # reduction='none'
 
-        # weighted loss
-        if use_difficulty_scaling:
-            loss = (loss_per_sample * (1+difficulties)).mean()
+        # # weighted loss
+        # if use_difficulty_scaling:
+        #     loss = (loss_per_sample * 0.75*(1+difficulties)).mean()
         # else:
         loss = loss_per_sample.mean()
         loss.backward()
@@ -627,6 +630,11 @@ def run_loso_evaluation(config, train_dataset, test_dataset):
         # Training loop with curriculum learning
         best_loso_acc = 0
         for epoch in range(config.num_epochs):
+            
+            # Increase dropout after curriculum learning ends
+            if config.use_curriculum_learning and epoch == config.curriculum_epochs:
+                print(f"   Epoch {epoch+1}: Increasing dropout from {config.dropout} to 0.6")
+                model.set_dropout_rate(0.6)
 
             # Create curriculum subset if enabled
             if config.use_curriculum_learning and epoch < config.curriculum_epochs:
@@ -847,7 +855,7 @@ def run_cross_corpus_evaluation(config, train_dataset, test_datasets):
             if class_difficulties[i]
             else 1.0
         )
-        class_weights.append((1 + freq_weight) * (1+avg_difficulty)*2)
+        class_weights.append(freq_weight + 0.75*avg_difficulty)
         freq_weights.append(freq_weight + 1)
         print("########### LABEL {i} ###############")
         print(f"freq_weight: {freq_weight} ----   avg_difficulty: {avg_difficulty}")
@@ -882,6 +890,11 @@ def run_cross_corpus_evaluation(config, train_dataset, test_datasets):
     # Training loop with curriculum learning
     best_val_acc = 0
     for epoch in range(config.num_epochs):
+        
+        # Increase dropout after curriculum learning ends
+        if epoch == config.curriculum_epochs:
+            print(f"   Epoch {epoch+1}: Increasing dropout from {config.dropout} to 0.6")
+            model.set_dropout_rate(0.6)
 
         # Create curriculum subset if enabled
         if config.use_curriculum_learning and epoch < config.curriculum_epochs:

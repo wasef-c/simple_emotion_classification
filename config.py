@@ -13,7 +13,7 @@ class Config:
         
         # Model settings
         self.hidden_dim = 1024
-        self.dropout = 0.3
+        self.dropout = 0.1
         self.num_classes = 4  # neutral, happy, sad, anger
         
         # Training settings
@@ -43,7 +43,7 @@ class Config:
         }
         
         # WandB settings
-        self.wandb_project = "Full_Ablation_V3"
+        self.wandb_project = "Full_Ablation_V5"
         self.experiment_name = "baseline"
         
         # Class labels
